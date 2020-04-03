@@ -36,6 +36,9 @@
 extern "C" {
 #endif
 
+#include <toolchain.h>
+#include <sys/util.h>
+
 #define NRFX_MODULE_PREFIX  _CONCAT(NRFX_, NRFX_LOG_MODULE)
 /*
  * The following macros from nrfx_config control the log messages coming from

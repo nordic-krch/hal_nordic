@@ -49,6 +49,83 @@ extern "C" {
 
 #include <sys/__assert.h>
 
+#include <autoconf.h>
+#ifdef CONFIG_BARE_METAL
+
+#include <soc/nrfx_irqs.h>
+
+#define NRFX_IRQ_PRIORITY_SET(irq_number, priority) \
+        NVIC_SetPriority(irq_number, priority)
+
+/**
+ * @brief Macro for enabling a specific IRQ.
+ *
+ * @param irq_number IRQ number.
+ */
+#define NRFX_IRQ_ENABLE(irq_number)  NVIC_EnableIRQ(irq_number)
+
+/**
+ * @brief Macro for checking if a specific IRQ is enabled.
+ *
+ * @param irq_number IRQ number.
+ *
+ * @retval true  If the IRQ is enabled.
+ * @retval false Otherwise.
+ */
+#define NRFX_IRQ_IS_ENABLED(irq_number)  NVIC_GetEnableIRQ(irq_number)
+
+/**
+ * @brief Macro for disabling a specific IRQ.
+ *
+ * @param irq_number IRQ number.
+ */
+#define NRFX_IRQ_DISABLE(irq_number)  NVIC_EnableIRQ(irq_number)
+
+/**
+ * @brief Macro for setting a specific IRQ as pending.
+ *
+ * @param irq_number IRQ number.
+ */
+#define NRFX_IRQ_PENDING_SET(irq_number)  NVIC_SetPendingIRQ(irq_number)
+
+/**
+ * @brief Macro for clearing the pending status of a specific IRQ.
+ *
+ * @param irq_number IRQ number.
+ */
+#define NRFX_IRQ_PENDING_CLEAR(irq_number)  NVIC_ClearPendingIRQ(irq_number)
+
+/**
+ * @brief Macro for checking the pending status of a specific IRQ.
+ *
+ * @retval true  If the IRQ is pending.
+ * @retval false Otherwise.
+ */
+#define NRFX_IRQ_IS_PENDING(irq_number)  (NVIC_GetPendingIRQ(irq_number) == 1)
+
+/** @brief Macro for entering into a critical section. */
+#define NRFX_CRITICAL_SECTION_ENTER()  { unsigned int irq_lock_key = irq_lock();
+
+/** @brief Macro for exiting from a critical section. */
+#define NRFX_CRITICAL_SECTION_EXIT()     irq_unlock(irq_lock_key); }
+
+//------------------------------------------------------------------------------
+
+/**
+ * @brief When set to a non-zero value, this macro specifies that
+ *        @ref nrfx_coredep_delay_us uses a precise DWT-based solution.
+ *        A compilation error is generated if the DWT unit is not present
+ *        in the SoC used.
+ */
+#define NRFX_DELAY_DWT_BASED    0
+
+/**
+ * @brief Macro for delaying the code execution for at least the specified time.
+ *
+ * @param us_time Number of microseconds to wait.
+ */
+#define NRFX_DELAY_US(us_time)  nrfx_coredep_delay_us(us_time)
+
 /**
  * @brief Macro for placing a runtime assertion.
  *
@@ -63,6 +140,24 @@ extern "C" {
  */
 #define NRFX_STATIC_ASSERT(expression) \
         BUILD_ASSERT_MSG(expression, "assertion failed")
+
+#else /* BARE_METAL */
+
+/**
+ * @brief Macro for placing a runtime assertion.
+ *
+ * @param expression Expression to be evaluated.
+ */
+#define NRFX_ASSERT(expression)  __ASSERT_NO_MSG(expression)
+
+/**
+ * @brief Macro for placing a compile time assertion.
+ *
+ * @param expression Expression to be evaluated.
+ */
+#define NRFX_STATIC_ASSERT(expression) \
+        BUILD_ASSERT_MSG(expression, "assertion failed")
+
 
 //------------------------------------------------------------------------------
 
@@ -149,6 +244,7 @@ extern "C" {
 /* This is a k_busy_wait wrapper, added to avoid the inclusion of kernel.h */
 void nrfx_busy_wait(u32_t usec_to_wait);
 
+#endif /* CONFIG_BARE_METAL */
 //------------------------------------------------------------------------------
 
 #include <sys/atomic.h>
