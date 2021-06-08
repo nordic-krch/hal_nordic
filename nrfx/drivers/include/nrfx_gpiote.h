@@ -1,35 +1,4 @@
-/*
- * Copyright (c) 2015 - 2021, Nordic Semiconductor ASA
- * All rights reserved.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/*$$$LICENCE_NORDIC_STANDARD<2021>$$$*/
 
 #ifndef NRFX_GPIOTE_H__
 #define NRFX_GPIOTE_H__
@@ -48,6 +17,128 @@ extern "C" {
  * @ingroup nrf_gpiote
  * @brief   GPIO Task Event (GPIOTE) peripheral driver.
  */
+
+/**@defgroup NRFX_GPIOTE_CFG_FLAGS Flags used for @ref nrfx_gpiote_pin_config.
+ *
+ * Flags can be combined together but not all compinations make sense.
+ * @{ */
+
+/** @brief Use pull-up on input pin. */
+#define NRFX_GPIOTE_PULL_UP NRFX_BIT(4)
+
+/** @brief Use pull-down on input pin. */
+#define NRFX_GPIOTE_PULL_DOWN NRFX_BIT(5)
+
+/** @brief Pin configured as input. */
+#define NRFX_GPIOTE_INPUT NRFX_BIT(8)
+
+/** @brief Pin configured as output. */
+#define NRFX_GPIOTE_OUTPUT NRFX_BIT(9)
+
+/** @brief When no direction is provided pin is uninitialized.
+ *
+ * Channel used by the pin is freed. Pin is configured to default state unless
+ * @ref NRFX_GPIOTE_SKIP_SETUP is set.
+ */
+#define NRFX_GPIOTE_DISCONNECTED 0
+
+/* @brief Output pin set low during configuration. */
+#define NRFX_GPIOTE_INIT_LOW NRFX_BIT(10)
+
+/* @brief Output pin set high during configuration. */
+#define NRFX_GPIOTE_INIT_HIGH NRFX_BIT(11)
+
+/* @brief Use GPIOTE task for driving output pin (allowing PPI control). */
+#define NRFX_GPIOTE_USE_TASK NRFX_BIT(12)
+
+#define NRFX_GPIOTE_OUT_TASK_MASK 0xF
+
+/* @brief Use GPIOTE task for controlling output pin.
+ *
+ * @param ch Channel ID. Should be allocated by @ref nrfx_gpiote_channel_alloc.
+ */
+#define NRFX_GPIOTE_OUT_TASK(ch) (NRFX_GPIOTE_USE_TASK | ch << 13)
+
+/* @brief GPIOTE task action sets the pin. */
+#define NRFX_GPIOTE_OUT_TASK_SET NRFX_BIT(17)
+
+/* @brief GPIOTE task action clears the pin. */
+#define NRFX_GPIOTE_OUT_TASK_CLR NRFX_BIT(18)
+#define NRFX_GPIOTE_OUT_TASK_ACTION_MASK (NRFX_GPIOTE_OUT_TASK_SET | NRFX_GPIOTE_OUT_TASK_CLR)
+
+/* @brief GPIOTE task action toggles the pin. */
+#define NRFX_GPIOTE_OUT_TASK_TOGGLE NRFX_GPIOTE_OUT_TASK_ACTION_MASK
+
+#define NRFX_GPIOTE_STD_0 0
+#define NRFX_GPIOTE_HIGH_0 NRFX_BIT(20)
+#define NRFX_GPIOTE_STD_1 0
+#define NRFX_GPIOTE_HIGH_1 NRFX_BIT(22)
+
+/** @brief Skip pin configuration.
+ *
+ * When set together with NRFX_GPIOTE_INPUT or NRFX_GPIOTE_DISCONNECTED, pin
+ * configuration is not touched.
+ */
+#define NRFX_GPIOTE_SKIP_SETUP NRFX_BIT(19)
+
+/**@} */
+
+/**@defgroup NRFX_GPIOTE_INT_FLAGS Flags used for @ref nrfx_gpiote_pin_int_config.
+ *
+ * Flags can be combined together but not all compinations make sense.
+ * @{ */
+
+/* @brief Indicate to use provided handler. */
+#define NRFX_GPIOTE_INT_HANDLER NRFX_BIT(11)
+
+/** @brief Disable interrupt for the given pin. */
+#define NRFX_GPIOTE_INT_DISABLE NRFX_BIT(12)
+
+/** @brief Enable interrupt for the given pin. */
+#define NRFX_GPIOTE_INT_ENABLE NRFX_BIT(13)
+
+/** @brief Enable event for the given pin.
+ *
+ * When GPIOTE pin is used (@ref NRFX_GPIOTE_INT_USE_IN_EVT) then event may be
+ * enabled to be used with PPI but interrupt is disabled.
+ */
+#define NRFX_GPIOTE_EVT_ENABLE NRFX_BIT(14)
+
+/** @brief Indicate that interrupt configuration (edge, level, type, channel) is provided. */
+#define NRFX_GPIOTE_INT_CFG_PRESENT NRFX_BIT(15)
+
+/** @brief Use edge triggered interrupt.
+ *
+ * If not set level interrupt is used. Level interrupts are only possible when
+ * GPIO sensing is used (@ref NRFX_GPIOTE_INT_USE_IN_EVT is not set).
+ */
+#define NRFX_GPIOTE_INT_EDGE NRFX_BIT(16)
+
+/** @brief Active low. */
+#define NRFX_GPIOTE_INT_LOW NRFX_BIT(17)
+
+/** @brief Active high. */
+#define NRFX_GPIOTE_INT_HIGH NRFX_BIT(18)
+
+/** @brief Use GPIOTE IN event.
+ *
+ * If not set GPIO sensing and PORT event are used.
+ */
+#define NRFX_GPIOTE_INT_USE_IN_EVT NRFX_BIT(19)
+#define NRFX_GPIOTE_INT_CH_PRESENT NRFX_BIT(20)
+
+#define NRFX_GPIOTE_INT_CHAN_BITS 4
+#define NRFX_GPIOTE_INT_CHAN_SHIFT 21
+#define NRFX_GPIOTE_INT_CHAN_MASK NRFX_BIT_MASK(NRFX_GPIOTE_INT_CHAN_BITS)
+
+/** @brief Indicate GPIOTE channel used for IN event.
+ *
+ * Channel shall be allocated with @ref nrfx_gpiote_channel_alloc.
+ */
+#define NRFX_GPIOTE_INT_CHAN(ch) \
+    (NRFX_GPIOTE_INT_USE_IN_EVT | NRFX_GPIOTE_INT_CH_PRESENT | (ch << NRFX_GPIOTE_INT_CHAN_SHIFT))
+
+/**@} */
 
 /** @brief Input pin configuration. */
 typedef struct
@@ -278,6 +369,35 @@ nrfx_err_t nrfx_gpiote_channel_alloc(uint8_t * p_channel);
  * @retval NRFX_ERROR_INVALID_PARAM The channel is not user-configurable.
  */
 nrfx_err_t nrfx_gpiote_channel_free(uint8_t channel);
+
+/** @brief Configure pin.
+ *
+ * @param pin Absolute pin number.
+ * @param flags Flags. See @ref NRF_GPIOTE_CFG_FLAGS.
+ *
+ * @retval NRFX_SUCCESS             Initialization was successful.
+ * @retval NRFX_ERROR_INVALID_PARAM Invalid configuration.
+ */
+nrfx_err_t nrfx_gpiote_pin_config(nrfx_gpiote_pin_t pin, uint32_t flags);
+
+/** @brief Configure pin interrupt.
+ *
+ * @param pin       Pin.
+ * @param int_flags Flags. See @ref NRFX_GPIOTE_INT_FLAGS.
+ * @param handler   User handler. Can be null.
+ *
+ * @retval NRFX_SUCCESS             Initialization was successful.
+ * @retval NRFX_ERROR_INVALID_PARAM Invalid configuration.
+ * @retval NRFX_ERROR_NO_MEM        Too many handlers used.
+ */
+nrfx_err_t nrfx_gpiote_pin_int_config(nrfx_gpiote_pin_t pin, uint32_t int_flags,
+					nrfx_gpiote_evt_handler_t handler);
+
+/** @brief Set global callback called for each event.
+ *
+ * @param handler Global handler.
+ */
+void nrfx_gpiote_global_callback_set(nrfx_gpiote_evt_handler_t handler);
 
 /**
  * @brief Function for initializing a GPIOTE output pin.

@@ -1,35 +1,4 @@
-/*
- * Copyright (c) 2015 - 2021, Nordic Semiconductor ASA
- * All rights reserved.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/*$$$LICENCE_NORDIC_STANDARD<2015>$$$*/
 
 #ifndef NRF_GPIO_H__
 #define NRF_GPIO_H__
@@ -265,6 +234,18 @@ NRF_STATIC_INLINE void nrf_gpio_cfg_sense_input(uint32_t             pin_number,
 NRF_STATIC_INLINE void nrf_gpio_cfg_sense_set(uint32_t             pin_number,
                                               nrf_gpio_pin_sense_t sense_config);
 
+/**
+ * @brief Function for configuring pin direction and setting sense level.
+ *
+ * Function preserves remaining configuration (pull, drive).
+ *
+ * @param pin_number   Specifies the pin number.
+ * @param sense_config Sense configuration.
+ * @param output       If true set pin as output. If false configure as input.
+ */
+NRF_STATIC_INLINE void nrf_gpio_cfg_sense_dir(uint32_t             pin_number,
+                                             nrf_gpio_pin_sense_t sense_config,
+                                             bool output);
 /**
  * @brief Function for setting the direction for a GPIO pin.
  *
@@ -668,6 +649,19 @@ NRF_STATIC_INLINE void nrf_gpio_cfg_sense_set(uint32_t             pin_number,
     uint32_t cnf = reg->PIN_CNF[pin_number] & ~GPIO_PIN_CNF_SENSE_Msk;
 
     reg->PIN_CNF[pin_number] = cnf | (sense_config << GPIO_PIN_CNF_SENSE_Pos);
+}
+
+NRF_STATIC_INLINE void nrf_gpio_cfg_sense_dir(uint32_t pin_number,
+                                              nrf_gpio_pin_sense_t sense_config,
+                                              bool output)
+{
+    NRF_GPIO_Type * reg = nrf_gpio_pin_port_decode(&pin_number);
+    uint32_t cnf = reg->PIN_CNF[pin_number] &
+                    ~(GPIO_PIN_CNF_SENSE_Msk | GPIO_PIN_CNF_INPUT_Msk | GPIO_PIN_CNF_DIR_Msk);
+
+    reg->PIN_CNF[pin_number] = cnf | GPIO_PIN_CNF_INPUT_Connect |
+                               (output ? GPIO_PIN_CNF_DIR_Output : GPIO_PIN_CNF_DIR_Input) |
+                               (sense_config << GPIO_PIN_CNF_SENSE_Pos);
 }
 
 
