@@ -1,35 +1,4 @@
-/*
- * Copyright (c) 2015 - 2021, Nordic Semiconductor ASA
- * All rights reserved.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/*$$$LICENCE_NORDIC_STANDARD<2015>$$$*/
 
 #ifndef NRFX_UARTE_H__
 #define NRFX_UARTE_H__
@@ -86,19 +55,32 @@ typedef enum
     NRFX_UARTE_EVT_TX_DONE, ///< Requested TX transfer completed.
     NRFX_UARTE_EVT_RX_DONE, ///< Requested RX transfer completed.
     NRFX_UARTE_EVT_ERROR,   ///< Error reported by UART peripheral.
+
+    NRFX_UARTE_EVT_TX_ABORTED, ///< TX transfer aborted.
+    NRFX_UARTE_EVT_RX_BUF_REQUEST, ///< Request for a RX buffer.
+    NRFX_UARTE_EVT_RX_DISABLED,   ///< Receiver is disabled.
+    NRFX_UARTE_EVT_RX_BUF_TOO_LATE,   ///< RX buffer request handled too late.
 } nrfx_uarte_evt_type_t;
+
+/** @brief Structure for the UARTE pin configuration. */
+typedef struct
+{
+    uint32_t tx_pin;     ///< TXD pin number.
+    uint32_t rx_pin;     ///< RXD pin number.
+    uint32_t cts_pin;    ///< CTS pin number.
+    uint32_t rts_pin;    ///< RTS pin number.
+    bool     gpio_config;///< Flag indicating if gpio should be configured
+} nrfx_uarte_psel_config_t;
 
 /** @brief Structure for the UARTE configuration. */
 typedef struct
 {
-    uint32_t             pseltxd;            ///< TXD pin number.
-    uint32_t             pselrxd;            ///< RXD pin number.
-    uint32_t             pselcts;            ///< CTS pin number.
-    uint32_t             pselrts;            ///< RTS pin number.
-    void *               p_context;          ///< Context passed to interrupt handler.
-    nrf_uarte_baudrate_t baudrate;           ///< Baud rate.
-    uint8_t              interrupt_priority; ///< Interrupt priority.
-    nrf_uarte_config_t   hal_cfg;            ///< Parity, flow control and stop bits settings.
+    nrfx_uarte_psel_config_t * p_psel_config;      ///< Pin configuration. If NULL driver skips configuration.
+    void *                     p_context;          ///< Context passed to interrupt handler.
+    nrf_uarte_baudrate_t       baudrate;           ///< Baud rate.
+    uint8_t                    interrupt_priority; ///< Interrupt priority.
+    nrf_uarte_config_t         hal_cfg;            ///< Parity, flow control and stop bits settings.
+    bool                       tx_stop_on_end;     ///< Flag indicating if the STOPTX task is triggered on the ENDTX event
 } nrfx_uarte_config_t;
 
 #if defined(UARTE_CONFIG_STOP_Msk) || defined(__NRFX_DOXYGEN__)
@@ -116,6 +98,7 @@ typedef struct
 #else
     #define NRFX_UARTE_DEFAULT_EXTENDED_PARITYTYPE_CONFIG
 #endif
+
 
 /**
  * @brief UARTE driver default configuration.
@@ -146,12 +129,20 @@ typedef struct
     }                                                                               \
 }
 
+
 /** @brief Structure for the UARTE transfer completion event. */
 typedef struct
 {
     uint8_t * p_data; ///< Pointer to memory used for transfer.
     size_t    bytes;  ///< Number of bytes transfered.
 } nrfx_uarte_xfer_evt_t;
+
+/** @brief Structure for the UARTE RX disable event. */
+typedef struct
+{
+    size_t    flush_cnt;  ///< Number of bytes flushed from RX FIFO.
+                          /**< They will be copied to the next provided buffer. */
+} nrfx_uarte_rx_disabled_evt_t;
 
 /** @brief Structure for UARTE error event. */
 typedef struct
@@ -166,9 +157,10 @@ typedef struct
     nrfx_uarte_evt_type_t type; ///< Event type.
     union
     {
-        nrfx_uarte_xfer_evt_t  rxtx;  ///< Data provided for transfer completion events.
-        nrfx_uarte_error_evt_t error; ///< Data provided for error event.
-    } data;                           ///< Union to store event data.
+        nrfx_uarte_xfer_evt_t  rxtx;              ///< Data provided for transfer completion events.
+        nrfx_uarte_error_evt_t error;             ///< Data provided for error event.
+        nrfx_uarte_rx_disabled_evt_t rx_disabled; ///< Data provided for error event.
+    } data;                                       ///< Union to store event data.
 } nrfx_uarte_event_t;
 
 /**
@@ -262,6 +254,33 @@ nrfx_err_t nrfx_uarte_tx(nrfx_uarte_t const * p_instance,
                          size_t               length);
 
 /**
+ * @brief Function for sending one byte.
+ *
+ * If an event handler is provided in nrfx_uarte_init() call, this function
+ * returns immediately and the handler is called when the transfer is done.
+ * Otherwise, the transfer is performed in blocking mode, that is this function
+ * returns when the transfer is finished. Blocking mode is not using interrupt
+ * so there is no context switching inside the function.
+ *
+ * @note Peripherals using EasyDMA (including UARTE) require the transfer buffers
+ *       to be placed in the Data RAM region. If this condition is not met,
+ *       this function will fail with the error code NRFX_ERROR_INVALID_ADDR.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] byte       Byte.
+ * @param[in] timeout_us Timeout occurs when byte is not sent for given time. When
+ *                       set to 0 timeout is disabled and function blocks until byte
+ *                       transfer is started or completed in blocking mode.
+ *
+ * @retval NRFX_SUCCESS            Initialization was successful.
+ * @retval NRFX_ERROR_TIMEOUT      Timeout.
+ * @retval NRFX_ERROR_FORBIDDEN    UARTE was disabled during poll_out.
+ */
+nrfx_err_t nrfx_uarte_poll_out(nrfx_uarte_t const * p_instance,
+                               uint8_t byte,
+                               uint32_t timeout_us);
+
+/**
  * @brief Function for checking if UARTE is currently transmitting.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
@@ -273,13 +292,70 @@ bool nrfx_uarte_tx_in_progress(nrfx_uarte_t const * p_instance);
 
 /**
  * @brief Function for aborting any ongoing transmission.
- * @note @ref NRFX_UARTE_EVT_TX_DONE event will be generated in non-blocking mode.
- *       It will contain number of bytes sent until the abort was called. The event
- *       handler will be called from the UARTE interrupt context.
+ * @note When abortion is not synchronous @ref NRFX_UARTE_EVT_TX_ABORTED event will
+ *       be generated in non-blocking mode. It will contain number of bytes sent
+ *       until the abort was called. The event handler will be called from the UARTE
+ *       interrupt context.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] sync       If true operation is synchronous. Transmitter is stopped upon
+ *                       function return and no event is generated.
+ * @param[in] lock       Prevent using TX until @ref nrfx_uarte_tx_unlock is called.
+ *
+ * @retval NRFX_SUCCESS Successfully initiated abort or when transmitter synchronously stopped.
+ * @retval NRFX_ERROR_INVALID_STATE Attempt to asychrnously abort when no transfer is active.
  */
-void nrfx_uarte_tx_abort(nrfx_uarte_t const * p_instance);
+nrfx_err_t nrfx_uarte_tx_abort(nrfx_uarte_t const * p_instance, bool sync, bool lock);
+
+/**
+ * @brief Function for unlocking transmission.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @reval NRFX_SUCCESS Successful unlocking.
+ * @retval NRFX_ERROR_INVALID_STATE Transmission was not locked.
+ */
+nrfx_err_t nrfx_uarte_tx_unlock(nrfx_uarte_t const * p_instance);
+
+/**
+ * @brief Enable receiver.
+ *
+ * From that context event handler will be called with @ref NRFX_UARTE_EVENT_RX_BUF_REQUEST event.
+ * User my respnd and provide a buffer using @ref nrfx_uarte_rx_buffer_set. Error is returned if
+ * buffer is not provided. After that receiver is started and another @ref NRFX_UARTE_EVT_RX_BUF_REQUEST
+ * is generated. If new buffer is not provided then receiver is disabled when buffer is filled.
+ * If new buffer is provided then receiver will seamlessly switch to a new buffer (using short).
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] stop_on_end When true RX is disabled when new buffers are not provided.
+ * @param[in] cont        When true ENDRX event is shortend with STARTRX task. Flag
+ *                        should not be used with short buffers when there is a risk
+ *                        that new buffer is not provided on time. If option is set
+ *                        and new buffer is not provided on time, receiver starts to
+ *                        overwrite current buffer. If false, new transfer will be
+ *                        triggered from ENDRX interrupt handler (if new buffer was
+ *                        provided).
+ *
+ * @retval NRFX_SUCCESS      Receiver successfully enabled.
+ * @retval NRFX_ERROR_BUSY   When receiver is already enabled.
+ * @retval NRFX_ERROR_NO_MEM When buffer was not provided.
+ */
+nrfx_err_t nrfx_uarte_rx_enable(nrfx_uarte_t const * p_instance,
+				bool stop_on_end, bool cont);
+
+/**
+ * @brief Function for providing reception buffer.
+ *
+ * Function shall be called as a response to @ref NRFX_UARTE_EVT_RX_BUF_REQUEST event.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ *
+ * @retval NRFX_SUCCESS             Buffer successfully set.
+ * @retval NRFX_ERROR_INVALID_STATE Buffer provided without pending request.
+ * @retval NRFX_ERROR_TIMEOUT       Buffer provided too late. Receiver is being disabled.
+ */
+nrfx_err_t nrfx_uarte_rx_buffer_set(nrfx_uarte_t const * p_instance,
+		                    uint8_t * p_data, size_t length);
 
 /**
  * @brief Function for receiving data over UARTE.
@@ -325,9 +401,50 @@ void nrfx_uarte_tx_abort(nrfx_uarte_t const * p_instance);
  */
 nrfx_err_t nrfx_uarte_rx(nrfx_uarte_t const * p_instance,
                          uint8_t *            p_data,
-                         size_t               length);
+                         size_t               length,
+			 bool                 stop_on_end);
 
+/**
+ * @brief Function for getting completed RX buffer.
+ *
+ * Function is intended to be used in blocking mode only. It returns address and
+ * length of the buffer from the receiver but only if ENDRX event is set. Function
+ * can be used for polling receiver in blocking mode. Contrary to @ref nrfx_uarte_rx
+ * which blocks until byte is received.
+ *
+ * @param[in]  p_instance Pointer to the driver instance structure.
+ * @param[out] pp_data    Location where buffer address if written.
+ * @param[out] p_length   Location where buffer length is written.
+ *
+ * @retval NRFX_SUCCESS         If reception was completed. @p pp_data and @p p_data
+ *                              content is valid.
+ * @retval NRFX_ERROR_FORBIDDEN If driver is configured in non-blocking mode and feature
+ *                              is not supported.
+ * @retval NRFX_ERROR_BUSY      If reception is not completed.
+ */
+nrfx_err_t nrfx_uarte_get_rx(nrfx_uarte_t const * p_instance,
+                             uint8_t **           pp_data,
+                             size_t *             p_length);
 
+/**
+ * @brief Function for disabling receiver interrupts.
+ *
+ * Function disables interrupts from ENDRX, RXSTARTED and RXTO events. This prevents
+ * generation of @ref NRFX_UARTE_EVT_RX_DONE, @ref NRFX_UARTE_EVT_RX_BUF_REQUEST,
+ * @ref NRFX_UARTE_EVT_RX_DISABLED and @ref NRFX_UARTE_EVT_RX_BUF_TOO_LATE.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ */
+void nrfx_uarte_rx_int_disable(nrfx_uarte_t const * p_instance);
+
+/**
+ * @brief Function for enabling receiver interrupts.
+ *
+ * Function enables interrupts disabled by @ref nrfx_uarte_rx_int_disable.
+ *
+ * @param[in] p_instance Pointer to the driver instance structure.
+ */
+void nrfx_uarte_rx_int_enable(nrfx_uarte_t const * p_instance);
 
 /**
  * @brief Function for testing the receiver state in blocking mode.
@@ -356,8 +473,13 @@ bool nrfx_uarte_rx_ready(nrfx_uarte_t const * p_instance);
  *          or use large enough reception buffers.
  *
  * @param[in] p_instance Pointer to the driver instance structure.
+ * @param[in] sync       If true receiver is disabled synchronously.
+ *
+ *
+ * @retval NRFX_SUCCESS             Successfully initiate disabling or disabled (synchronous mode).
+ * @retval NRFX_ERROR_INVALID_STATE Receiver was not enabled.
  */
-void nrfx_uarte_rx_abort(nrfx_uarte_t const * p_instance);
+nrfx_err_t nrfx_uarte_rx_abort(nrfx_uarte_t const * p_instance, bool sync);
 
 /**
  * @brief Function for reading error source mask. Mask contains values from @ref nrf_uarte_error_mask_t.

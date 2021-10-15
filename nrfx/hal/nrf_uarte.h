@@ -1,35 +1,4 @@
-/*
- * Copyright (c) 2015 - 2021, Nordic Semiconductor ASA
- * All rights reserved.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/*$$$LICENCE_NORDIC_STANDARD<2015>$$$*/
 
 #ifndef NRF_UARTE_H__
 #define NRF_UARTE_H__
@@ -206,6 +175,14 @@ NRF_STATIC_INLINE bool nrf_uarte_event_check(NRF_UARTE_Type const * p_reg,
  */
 NRF_STATIC_INLINE uint32_t nrf_uarte_event_address_get(NRF_UARTE_Type const * p_reg,
                                                        nrf_uarte_event_t      event);
+
+/**
+ * @brief Function for configuring UARTE shortcuts.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ * @param[in] mask  Shortcuts to be set.
+ */
+NRF_STATIC_INLINE void nrf_uarte_shorts_set(NRF_UARTE_Type * p_reg, uint32_t mask);
 
 /**
  * @brief Function for enabling UARTE shortcuts.
@@ -493,6 +470,11 @@ NRF_STATIC_INLINE uint32_t nrf_uarte_event_address_get(NRF_UARTE_Type const * p_
                                                        nrf_uarte_event_t      event)
 {
     return (uint32_t)((uint8_t *)p_reg + (uint32_t)event);
+}
+
+NRF_STATIC_INLINE void nrf_uarte_shorts_set(NRF_UARTE_Type * p_reg, uint32_t mask)
+{
+    p_reg->SHORTS = mask;
 }
 
 NRF_STATIC_INLINE void nrf_uarte_shorts_enable(NRF_UARTE_Type * p_reg, uint32_t mask)
