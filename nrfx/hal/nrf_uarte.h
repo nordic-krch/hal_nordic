@@ -319,6 +319,15 @@ NRF_STATIC_INLINE void nrf_uarte_enable(NRF_UARTE_Type * p_reg);
 NRF_STATIC_INLINE void nrf_uarte_disable(NRF_UARTE_Type * p_reg);
 
 /**
+ * @brief Function for checking if UARTE is enabled.
+ *
+ * @param[in] p_reg Pointer to the structure of registers of the peripheral.
+ *
+ * @return true is UARTE is enabled.
+ */
+NRF_STATIC_INLINE bool nrf_uarte_enable_check(NRF_UARTE_Type * p_reg);
+
+/**
  * @brief Function for configuring TX/RX pins.
  *
  * @param[in] p_reg   Pointer to the structure of registers of the peripheral.
@@ -556,6 +565,11 @@ NRF_STATIC_INLINE void nrf_uarte_enable(NRF_UARTE_Type * p_reg)
 NRF_STATIC_INLINE void nrf_uarte_disable(NRF_UARTE_Type * p_reg)
 {
     p_reg->ENABLE = UARTE_ENABLE_ENABLE_Disabled;
+}
+
+NRF_STATIC_INLINE bool nrf_uarte_enable_check(NRF_UARTE_Type * p_reg)
+{
+	return p_reg->ENABLE == UARTE_ENABLE_ENABLE_Enabled;
 }
 
 NRF_STATIC_INLINE void nrf_uarte_txrx_pins_set(NRF_UARTE_Type * p_reg,
